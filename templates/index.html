@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Man Standing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: auto; /* Allow the table to adjust based on content */
+        }
+
+        th {
+            user-select: none; /* Prevent text selection while resizing */
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Last Man Standing</h1>
+    <button onclick="fetchOdds()" aria-label="Fetch Odds">Fetch Odds</button>
+    <button onclick="resetUI()" aria-label="Reset">Reset</button>
+
+    <h2>Player Picks</h2>
+    <div class="resizable-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Consortium</th>
+                    <th>Team Selection</th>
+                    <th>Previous Picks</th>
+                    <th>Next Picks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Player 1</td>
+                    <td><input type="checkbox" id="player1-consortium" checked></td>
+                    <td>
+                        <select id="player1-team-select">
+                            <option value="">Select a team</option>
+                        </select>
+                        <button onclick="addPick('player1')">Add Pick</button>
+                    </td>
+                    <td>
+                        <ul id="player1-previous-picks"></ul>
+                    </td>
+                    <td>
+                        <ul id="player1-next-picks"></ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Player 2</td>
+                    <td><input type="checkbox" id="player2-consortium"></td>
+                    <td>
+                        <select id="player2-team-select">
+                        </select>
+                        <button onclick="addPick('player2')">Add Pick</button>
+                    </td>
+                    <td>
+                        <ul id="player2-previous-picks"></ul>
+                    </td>
+                    <td>
+                        <ul id="player2-next-picks"></ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Player 3</td>
+                    <td><input type="checkbox" id="player3-consortium"></td>
+                    <td>
+                        <select id="player3-team-select">
+                        </select>
+                        <button onclick="addPick('player3')">Add Pick</button>
+                    </td>
+                    <td>
+                        <ul id="player3-previous-picks"></ul>
+                    </td>
+                    <td>
+                        <ul id="player3-next-picks"></ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <button onclick="strategise()">Strategise</button>
+
+    <h2>
+        <a href="https://www.sportytrader.com/en/odds/football/england/premier-league-49/" target="_blank" style="text-decoration: none; color: inherit;">
+            Odds Data
+        </a>
+    </h2>
+
+    <div id="odds-data" class="resizable-table"></div>
+
+    <h2>Debug Log</h2>
+    <div id="debug-log" style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin-top: 20px;">
+        <pre id="debug-output"></pre>
+    </div>
+
+    <script>
+
+
+        // Function to add a pick for a player
+        function addPick(playerId) {
+            const select = document.getElementById(playerId + '-team-select');
+            const selectedTeam = select.value;
+            const previousPicksList = document.getElementById(playerId + '-previous-picks');
+
+            if (selectedTeam) {
+                // Create a new list item for the previous pick
+                const listItem = document.createElement('li');
+                listItem.textContent = selectedTeam;
+
+                // Create a delete button
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = function() {
+                    previousPicksList.removeChild(listItem);
+                    
+                    // Create a new option for the deleted team
+                    const option = document.createElement('option');
+                    option.value = selectedTeam;
+                    option.textContent = selectedTeam;
+                    
+                    // Add the option to the select element
+                    select.appendChild(option);
+
+                    // Sort the options alphabetically
+                    const options = Array.from(select.options)
+                        .filter(opt => opt.value !== '') // Keep the "Select a team" option
+                        .sort((a, b) => a.text.localeCompare(b.text));
+                    
+                    // Clear existing options except the first (default) option
+                    while (select.options.length > 1) {
+                        select.remove(1);
+                    }
+                    
+                    // Add sorted options back to the select
+                    options.forEach(option => select.appendChild(option));
+                };
+
+                listItem.appendChild(deleteButton);
+                previousPicksList.appendChild(listItem);
+
+                // Remove the selected team from the dropdown
+                select.remove(select.selectedIndex);
+            }
+        }
+
+        // Function to populate team options in a select element
+        function populateTeamOptions(selectElement, teams) {
+            // Clear existing options
+            selectElement.innerHTML = '<option value="">Select a team</option>';
+
+            // Add new options
+            teams.forEach(team => {
+                const option = document.createElement('option');
+                option.value = team;
+                option.textContent = team;
+                selectElement.appendChild(option);
+            });
+        }
+
+        // Call populateTeamOptions on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const playerIds = ['player1', 'player2', 'player3'];
+            const allTeams = [
+                "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", 
+                "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town", 
+                "Leicester", "Liverpool", "Manchester City", "Manchester United", 
+                "Newcastle", "Nottingham Forest", "Southampton", "Tottenham", 
+                "West Ham", "Wolves"
+            ];
+
+            playerIds.forEach(playerId => {
+                const select = document.getElementById(`${playerId}-team-select`);
+                populateTeamOptions(select, allTeams);
+            });
+        });
+
+        // Function to handle strategising
+        function strategise() {
+            console.log("Strategise button clicked.");  // Log when the function is triggered
+
+            // Clear the next picks for each player
+            document.querySelectorAll('ul[id$="-next-picks"]').forEach(ul => {
+                ul.innerHTML = '';
+            });
+
+            // Count the number of player checkboxes that are checked
+            const numPeople = document.querySelectorAll('input[type="checkbox"][id$="-consortium"]:checked').length;
+            console.log(`Number of people selected: ${numPeople}`);  // Log the number of selected players
+            const usedTeamsDict = {}; // Collect used teams from previous picks
+
+            // Collect used teams from previous picks
+            document.querySelectorAll('ul[id$="-previous-picks"]').forEach((ul, index) => {
+                usedTeamsDict[index] = Array.from(ul.children).map(li => li.textContent.replace('Delete', '').trim());
+            });
+            console.log("Used teams dictionary:", usedTeamsDict);  // Log the used teams
+
+            // Collect selected weekends
+            const selectedWeekends = [];
+            document.querySelectorAll('input[type="checkbox"][id^="include-"]:checked').forEach(checkbox => {
+                selectedWeekends.push(checkbox.id.replace('include-', ''));
+            });
+            console.log("Selected weekends:", selectedWeekends);  // Log the selected weekends
+
+            fetch('/strategise', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ num_people: numPeople, used_teams_dict: usedTeamsDict, selected_weekends: selectedWeekends }),
+            })
+            .then(response => {
+                console.log("Response received from server.");  // Log when the response is received
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error(data.error);
+                    document.getElementById('debug-output').textContent = data.error;
+                    return;
+                }
+
+                const bestPaths = data.best_paths;
+                console.log("Best paths found:", bestPaths);  // Log the best paths found
+                bestPaths.forEach((path, index) => {
+                    const nextPicksList = document.getElementById(`player${index + 1}-next-picks`);
+                    path.forEach(pick => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = pick[0];
+                        nextPicksList.appendChild(listItem);
+                    });
+                });
+
+                // Display debug messages
+                const debugOutput = document.getElementById('debug-output');
+                debugOutput.textContent = data.debug_messages.join('\n');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('debug-output').textContent = 'An error occurred while processing the request.';
+            });
+        }
+        
+        // Object containing team logos
+        const teamLogos = {
+            'Liverpool': 'https://seeklogo.com/images/L/liverpool-fc-logo-094B4FC004-seeklogo.com.png',
+            'Manchester City': 'https://seeklogo.com/images/M/manchester-city-fc-logo-D7E546E481-seeklogo.com.png',
+            'Manchester United': 'https://images.seeklogo.com/logo-png/50/1/manchester-united-logo-png_seeklogo-501152.png?v=1957306304152867560',
+            'Arsenal': 'https://seeklogo.com/images/A/arsenal-logo-B27C071FE1-seeklogo.com.png',
+            'Bournemouth': 'https://seeklogo.com/images/A/afc-bournemouth-logo-FAA541D485-seeklogo.com.png',
+            'Aston Villa': 'https://seeklogo.com/images/A/aston-villa-football-club-logo-87EA15CC94-seeklogo.com.png',
+            'Brentford': 'https://seeklogo.com/images/B/brentford-fc-logo-E928FFBD93-seeklogo.com.png',
+            'Brighton': 'https://seeklogo.com/images/B/brighton-hove-albion-f-c-logo-3368C7D2CB-seeklogo.com.png',
+            'Chelsea': 'https://seeklogo.com/images/C/chelsea-fc-logo-E96F8E4F92-seeklogo.com.png', // No logo provided
+            'Crystal Palace': 'https://seeklogo.com/images/C/crystal-palace-fc-logo-6F4DFE5EF9-seeklogo.com.png',
+            'Everton': 'https://seeklogo.com/images/E/everton-football-club-logo-2D8779FBA9-seeklogo.com.png',
+            'Fulham': 'https://seeklogo.com/images/F/fulham-fc-logo-EBBC39136A-seeklogo.com.png',
+            'Ipswich Town': 'https://seeklogo.com/images/I/ipswich-town-fc-logo-97A5F610A7-seeklogo.com.png', // No logo provided
+            'Leicester': 'https://seeklogo.com/images/L/leicester-city-fc-logo-FD9C3CA26E-seeklogo.com.png',
+            'Newcastle': 'https://seeklogo.com/images/N/newcastle-united-logo-FB0B4713D8-seeklogo.com.png',
+            'Nottingham Forest': 'https://seeklogo.com/images/N/nottingham-forest-fc-logo-A7A0CEF79D-seeklogo.com.png',
+            'Southampton': 'https://seeklogo.com/images/S/southampton-fc-logo-4B19787C71-seeklogo.com.png',
+            'Tottenham': 'https://seeklogo.com/images/T/tottenham-hotspur-fc-logo-E10FF6C506-seeklogo.com.png',
+            'West Ham': 'https://seeklogo.com/images/W/west-ham-united-logo-87BDCFD2AB-seeklogo.com.png',
+            'Wolves': 'https://seeklogo.com/images/W/wolves-logo-54BADC5EB5-seeklogo.com.png'
+        };
+
+        // Add this object at the top of your script or inside the relevant function scope
+        const teamLinks = {
+            "Arsenal": "http://www.arsenal.com/home",
+            "Aston Villa": "http://www.avfc.co.uk/",
+            "Brentford": "http://www.brentfordfc.co.uk/",
+            "Brighton": "http://www.seagulls.co.uk",
+            "Chelsea": "http://www.chelseafc.com/",
+            "Crystal Palace": "https://www.cpfc.co.uk",
+            "Everton": "http://www.evertonfc.com",
+            "Fulham": "http://www.fulhamfc.com",
+            "Ipswich Town": "http://www.itfc.co.uk",
+            "Leicester": "http://www.lcfc.co.uk",
+            "Liverpool": "http://www.liverpoolfc.com",
+            "Manchester City": "https://www.mancity.com",
+            "Manchester United": "http://www.manutd.com",
+            "Newcastle": "http://www.nufc.co.uk/page/Welcome",
+            "Nottingham Forest": "http://www.nottinghamforest.co.uk/",
+            "Southampton": "http://www.saintsfc.co.uk",
+            "Tottenham": "http://www.tottenhamhotspur.com",
+            "West Ham": "http://www.whufc.com/",
+            "Wolves": "http://www.wolves.co.uk"
+        };
+        
+        // Function to create a hyperlink cell
+        function createLinkCell(teamName) {
+            const linkCell = document.createElement('td');
+            const link = document.createElement('a');
+            link.textContent = teamName;
+            link.href = teamLinks[teamName] || "#"; // Use "#" if no URL is found
+            link.target = "_blank"; // Open in a new tab
+            linkCell.appendChild(link);
+            return linkCell;
+        }
+
+        // Function to sort the table based on column type
+        function sortTable(header, type) {
+            // Find the parent table element
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+
+            // Determine the index of the clicked column
+            const columnIndex = Array.from(header.parentNode.children).indexOf(header);
+
+            // Toggle sorting direction
+            const ascending = header.dataset.sortAscending === 'true' ? false : true;
+            header.dataset.sortAscending = ascending;
+
+            // Get all rows as an array
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            // Sort rows based on the column type
+            rows.sort((a, b) => {
+                const cellA = a.children[columnIndex].textContent.trim();
+                const cellB = b.children[columnIndex].textContent.trim();
+
+                switch (type) {
+                    case 'number':
+                        return ascending 
+                            ? parseFloat(cellA) - parseFloat(cellB) 
+                            : parseFloat(cellB) - parseFloat(cellA);
+                    case 'date':
+                        // Split the date and time
+                        const [dateA, timeA] = cellA.split(' ');
+                        const [dateB, timeB] = cellB.split(' ');
+
+                        // Parse the date parts
+                        const [dayA, monthA, yearA] = dateA.split('/').map(Number);
+                        const [dayB, monthB, yearB] = dateB.split('/').map(Number);
+
+                        // Parse the time parts
+                        const [hourA, minuteA] = timeA.split(':').map(Number);
+                        const [hourB, minuteB] = timeB.split(':').map(Number);
+
+                        // Create Date objects
+                        const dateObjA = new Date(yearA, monthA - 1, dayA, hourA, minuteA); // monthA - 1 because months are 0-indexed
+                        const dateObjB = new Date(yearB, monthB - 1, dayB, hourB, minuteB);
+
+                        return ascending ? dateObjA - dateObjB : dateObjB - dateObjA;
+                    case 'text':
+                    default:
+                        return ascending 
+                            ? cellA.localeCompare(cellB) 
+                            : cellB.localeCompare(cellA);
+                }
+            });
+
+            // Append sorted rows back to the tbody
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Function to fetch odds data from the server
+        function fetchOdds() {
+            console.log("Fetching odds data...");
+            fetch('/fetch_odds')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Odds data received:", data);
+                    const oddsDataContainer = document.getElementById('odds-data');
+                    oddsDataContainer.innerHTML = ''; // Clear previous data
+                    
+                    for (const [weekend, matches] of Object.entries(data)) {
+                        const weekendHeader = document.createElement('h3');
+                        weekendHeader.innerHTML = `Match Weekend: ${weekend} <input type="checkbox" id="include-${weekend}" checked> Include`;
+                        oddsDataContainer.appendChild(weekendHeader);
+
+                        const table = document.createElement('table');
+                        const thead = document.createElement('thead');
+                        thead.innerHTML = `
+                            <tr>
+                                <th></th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'text')">Home Team</th>
+                                <th></th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'text')">Away Team</th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'date')">Commence Date</th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'number')">Average Home Odds</th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'number')">Average Away Odds</th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'number')">Max Home/Away Odds</th>
+                                <th data-sort-ascending="true" onclick="sortTable(this, 'text')">Home or Away</th>
+                            </tr>
+                        `;
+                        table.appendChild(thead);
+
+                        const tbody = document.createElement('tbody');
+                        matches.forEach(row => {
+                            const tr = document.createElement('tr');
+                            
+                            // Function to create logo cell
+                            function createLogoCell(teamName) {
+                                const logoCell = document.createElement('td');
+                                logoCell.className = 'logo-cell';  // Add logo-cell class
+
+                                if (teamLogos[teamName]) {
+                                    const logoImg = document.createElement('img');
+                                    logoImg.src = teamLogos[teamName];
+                                    logoImg.alt = `${teamName} logo`;
+                                    logoCell.appendChild(logoImg);
+                                }
+                                return logoCell;
+                            }
+
+                            
+                            // Add home team logo cell
+                            tr.appendChild(createLogoCell(row.home_team));
+
+                            // Add home team name as a hyperlink
+                            const homeTeamCell = document.createElement('td');
+                            const homeTeamLink = document.createElement('a');
+                            homeTeamLink.href = teamLinks[row.home_team] || "#";
+                            homeTeamLink.target = "_blank";
+                            homeTeamLink.textContent = row.home_team;
+                            homeTeamCell.appendChild(homeTeamLink);
+                            tr.appendChild(homeTeamCell);
+
+                            // Add away team logo cell
+                            tr.appendChild(createLogoCell(row.away_team));
+
+                            // Add away team name as a hyperlink
+                            const awayTeamCell = document.createElement('td');
+                            const awayTeamLink = document.createElement('a');
+                            awayTeamLink.href = teamLinks[row.away_team] || "#";
+                            awayTeamLink.target = "_blank";
+                            awayTeamLink.textContent = row.away_team;
+                            awayTeamCell.appendChild(awayTeamLink);
+                            tr.appendChild(awayTeamCell);
+                            
+                            // Remaining cells stay the same
+                            tr.innerHTML += `
+                                <td>${row.commence_time}</td>
+                                <td>${row.avg_home_odds}</td>
+                                <td>${row.avg_away_odds}</td>
+                                <td class="${row.max_odd_type === 'Home' ? 'max-odds-home' : 'max-odds-away'}">${row.max_home_away_odds}</td>
+                                <td class="${row.max_odd_type === 'Home' ? 'max-odds-home' : 'max-odds-away'}">${row.max_odd_type}</td>
+                            `;
+                            
+                            tbody.appendChild(tr);
+                        });
+                        table.appendChild(tbody);
+                        oddsDataContainer.appendChild(table);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching odds data:', error);
+                });
+
+        // Update fetchOdds function to use the createLinkCell for team names
+        matches.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            // Add home team logo cell
+            tr.appendChild(createLogoCell(row.home_team));
+
+            // Add home team name as a hyperlink
+            tr.appendChild(createLinkCell(row.home_team));
+
+            // Add away team logo cell
+            tr.appendChild(createLogoCell(row.away_team));
+
+            // Add away team name as a hyperlink
+            tr.appendChild(createLinkCell(row.away_team));
+            
+            // Remaining cells stay the same
+            tr.innerHTML += `
+                <td>${row.commence_time}</td>
+                <td>${row.avg_home_odds}</td>
+                <td>${row.avg_away_odds}</td>
+                <td class="${row.max_odd_type === 'Home' ? 'max-odds-home' : 'max-odds-away'}">${row.max_home_away_odds}</td>
+                <td class="${row.max_odd_type === 'Home' ? 'max-odds-home' : 'max-odds-away'}">${row.max_odd_type}</td>
+            `;
+            
+            tbody.appendChild(tr);
+        });
+        }
+
+
+        // JavaScript to handle resetting the UI
+        function resetUI() {
+            console.log("Resetting UI...");
+            
+            // Reset team selection dropdowns for each player
+            const playerIds = ['player1', 'player2', 'player3'];
+            const allTeams = [
+                "Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", 
+                "Chelsea", "Crystal Palace", "Everton", "Fulham", "Ipswich Town", 
+                "Leicester", "Liverpool", "Manchester City", "Manchester United", 
+                "Newcastle", "Nottingham Forest", "Southampton", "Tottenham", 
+                "West Ham", "Wolves"
+            ];
+
+            playerIds.forEach(playerId => {
+                const select = document.getElementById(`${playerId}-team-select`);
+                populateTeamOptions(select, allTeams);
+                const previousPicksList = document.getElementById(`${playerId}-previous-picks`);
+                const nextPicksList = document.getElementById(`${playerId}-next-picks`);
+
+                // Clear previous and next picks lists
+                previousPicksList.innerHTML = '';
+                nextPicksList.innerHTML = '';
+
+                // Reset the dropdown
+                // Remove all existing options except the first "Select a team" option
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add back all teams in alphabetical order
+                const sortedTeams = allTeams.sort((a, b) => a.localeCompare(b));
+                sortedTeams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    select.appendChild(option);
+                });
+
+                // Uncheck the consortium checkbox for players other than Player 1
+                if (playerId !== 'player1') {
+                    document.getElementById(`${playerId}-consortium`).checked = false;
+                } else {
+                    document.getElementById(`${playerId}-consortium`).checked = true;
+                }
+            
+            });
+
+            // Clear the odds data container
+            const oddsDataContainer = document.getElementById('odds-data');
+            oddsDataContainer.innerHTML = '';
+
+            // Clear debug output
+            const debugOutput = document.getElementById('debug-output');
+            debugOutput.textContent = '';
+            document.querySelectorAll('th').forEach(th => {
+                const resizer = th.querySelector('.resizer');
+                let startX, startWidth;
+
+                resizer.addEventListener('mousedown', (e) => {
+                    startX = e.clientX;
+                    startWidth = th.offsetWidth;
+                    document.addEventListener('mousemove', resizeColumn);
+                    document.addEventListener('mouseup', stopResize);
+                });
+
+                function resizeColumn(e) {
+                    const newWidth = startWidth + (e.clientX - startX);
+                    if (newWidth > 50) { // Minimum width to prevent collapsing
+                        th.style.width = `${newWidth}px`;
+                    }
+                }
+
+                function stopResize() {
+                    document.removeEventListener('mousemove', resizeColumn);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+            });
+
+        }
+
+        
+
+        // Capture console.log output and display it in the debug log
+        (function() {
+            const oldLog = console.log;
+            console.log = function(message) {
+                oldLog.apply(console, arguments);
+                const debugOutput = document.getElementById('debug-output');
+                debugOutput.textContent += message + '\n';
+            };
+        })();
+    </script>
+
+</body>
+</html>

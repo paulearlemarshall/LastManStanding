@@ -1,0 +1,100 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f9f9f9;
+}
+
+/* Center logo cells */
+td.logo-cell {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Style for logo images */
+td.logo-cell img {
+    height: 60px;
+    width: auto;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Style for max odds cells */
+td.max-odds-home {
+    color: green;
+}
+
+td.max-odds-away {
+    color: red;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+
+
+
+th {
+    background-color: #2a6e2c; /* Green background for headers */
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f2f2f2; /* Zebra striping for rows */
+}
+
+tr:hover {
+    background-color: #ddd; /* Highlight row on hover */
+}
+
+button {
+    background-color: #4CAF50; /* Green background */
+    color: white; /* White text */
+    border: none; /* No border */
+    padding: 10px 15px; /* Padding */
+    text-align: center; /* Center text */
+    text-decoration: none; /* No underline */
+    display: inline-block; /* Inline block */
+    font-size: 14px; /* Font size */
+    margin: 4px 2px; /* Margin */
+    cursor: pointer; /* Pointer cursor on hover */
+    border-radius: 5px; /* Rounded corners */
+    transition: background-color 0.3s; /* Smooth transition */
+}
+
+button:hover {
+    background-color: #45a049; /* Darker green on hover */
+}
+
+ul {
+    list-style-type: none; /* Remove bullet points */
+    padding: 0; /* Remove padding */
+}
+
+li {
+    display: flex; /* Flexbox for alignment */
+    justify-content: space-between; /* Space between items */
+    align-items: center; /* Center items vertically */
+    padding: 5px 0; /* Padding for list items */
+}
+
+li button {
+    background-color: #f44336; /* Red background for delete button */
+}
+
+li button:hover {
+    background-color: #d32f2f; /* Darker red on hover */
+}
+
+/* Add this to your existing CSS file */
+input[type="checkbox"] {
+    transform: scale(1.5); /* Make the checkbox larger */
+    margin: 0 10px; /* Add some margin */
+}
